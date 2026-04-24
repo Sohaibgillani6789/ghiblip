@@ -370,6 +370,7 @@ export function GhibliScene() {
               key={index}
               position={[index * STRIDE, 0, 0]}
               onClick={() => {
+                sessionStorage.setItem('returnToSection', '1');
                 router.push(targetRoute);
               }}
               onPointerOver={(e: any) => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, memo } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { gsap } from "gsap";
 import { Observer } from "gsap/Observer";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import '../styles/globals.css';
 import LazyGhibliSection from "./shaders/LazyGhibliSection";
 
@@ -27,18 +28,22 @@ const sectionStyle = {
 
 // Initial state and navigation logic
 
+// Section labels for the navigator
+const SECTION_LABELS = ["World", "Magic", "Tribute"];
+
 const HomePage = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAnimatingRef = useRef(false);
   const currentIndexRef = useRef(-1);
   const sectionScrollsRef = useRef(0);
   const gotoSectionRef = useRef<((index: number, direction: number) => void) | null>(null);
+  const [activeSection, setActiveSection] = useState(0);
 
-  function handleNavClick(idx: number) {
+  const handleNavClick = useCallback((idx: number) => {
     if (isAnimatingRef.current || currentIndexRef.current === idx) return;
     const direction = idx > currentIndexRef.current ? 1 : -1;
     gotoSectionRef.current?.(idx, direction);
-  }
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -53,7 +58,7 @@ const HomePage = () => {
     const imagesToLoad = ['/firstimage.jpg', '/secondimage.jpg'];
     const imagePromises = imagesToLoad.map(src => {
       return new Promise((resolve, reject) => {
-        const img = new Image();
+        const img = new window.Image();
         img.src = src;
         img.onload = resolve;
         img.onerror = resolve; // Continue even if error to prevent blocking
@@ -84,6 +89,7 @@ const HomePage = () => {
             defaults: { duration: 1.25, ease: "expo.inOut", force3D: true },
             onComplete: () => {
               isAnimatingRef.current = false;
+              setActiveSection(index);
             },
           });
 
@@ -114,10 +120,31 @@ const HomePage = () => {
           ).fromTo(images[index], { yPercent: 10 * dFactor }, { yPercent: 0 }, 0);
 
           currentIndexRef.current = index;
+          // Update nav immediately for snappy feel on initial load
+          if (index === 0) setActiveSection(0);
         };
 
         gotoSectionRef.current = gotoSection;
-        gotoSection(0, 1);
+
+        let initialSection = 0;
+        const returnSection = sessionStorage.getItem('returnToSection');
+        if (returnSection) {
+          initialSection = parseInt(returnSection, 10);
+          sessionStorage.removeItem('returnToSection');
+        }
+
+        if (initialSection > 0) {
+          // Instantly set the state to bypass the initial transition
+          const initialTarget = sections[initialSection];
+          gsap.set(initialTarget, {
+            autoAlpha: 1,
+            zIndex: 1,
+            clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+          });
+          currentIndexRef.current = initialSection;
+        } else {
+          gotoSection(0, 1);
+        }
 
         // Reveal container after initial GSAP setup
         if (containerRef.current) containerRef.current.style.visibility = "visible";
@@ -182,7 +209,32 @@ const HomePage = () => {
 
   return (
     <div ref={containerRef} style={{ visibility: "hidden" }}>
-      {/* Navigation buttons removed as requested */}
+      {/* Ghibli Vertical Navigator */}
+      <nav className="ghibli-nav" aria-label="Section navigation">
+        <div className="ghibli-nav__track">
+          {SECTION_LABELS.map((label, i) => (
+            <button
+              key={i}
+              id={`ghibli-nav-btn-${i}`}
+              className={`ghibli-nav__item${activeSection === i ? ' ghibli-nav__item--active' : ''}`}
+              onClick={() => handleNavClick(i)}
+              aria-label={`Navigate to ${label}`}
+              aria-current={activeSection === i ? 'true' : undefined}
+            >
+              {/* Animated dot */}
+              <span className="ghibli-nav__dot">
+                <span className="ghibli-nav__dot-core" />
+                <span className="ghibli-nav__dot-ring" />
+                {activeSection === i && <span className="ghibli-nav__dot-pulse" />}
+              </span>
+              {/* Label */}
+              <span className="ghibli-nav__label">{label}</span>
+            </button>
+          ))}
+          {/* Vertical connector line */}
+          <div className="ghibli-nav__line" />
+        </div>
+      </nav>
 
       {/* Section 1 */}
       <section
@@ -244,94 +296,25 @@ const HomePage = () => {
           }}
         />
         {/* Glassmorphism Card */}
-        <div
-          className="glass-card"
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "20%",
-            background: "rgba(0, 0, 0, 0.38)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(20px)",
-            width: "90%",
-            maxWidth: "420px",
-            zIndex: 10,
-            padding: "16px",
-            borderRadius: "20px",
-            overflow: "hidden",
-            transform: "translate(-50%, -50%) translateZ(0)",
-            willChange: "transform, opacity",
-          }}
-        >
-          <p
-            className="text-white mb-1"
-            style={{
-              fontFamily: "sans-serif",
-              fontSize: "clamp(0.9rem, 2.5vw, 1rem)", // ✅ Responsive font
-              lineHeight: "1.4rem",
-            }}
-          >
-            Explore the Magic of Ghibli.
-          </p>
+        <div className="glass-card">
+          <span className="hero-subtitle">
+            Explore the Magic of Ghibli
+          </span>
 
-          <h1
-            className="text-white font-extrabold leading-tight mb-2"
-            style={{
-              fontFamily: "sans-serif",
-              fontSize: "clamp(1.8rem, 6vw, 2.8rem)", // ✅ Scales on small/large screens
-              lineHeight: "1.1",
-            }}
-          >
+          <h1 className="hero-title">
             Dreams and <br /> Adventure Await
           </h1>
 
-          <p
-            className="text-white mb-6"
-            style={{
-              fontFamily: "sans-serif",
-              fontSize: "clamp(0.9rem, 2.5vw, 1rem)",
-              lineHeight: "1.5rem",
-            }}
-          >
+          <p className="hero-description">
             Step into Studio Ghibli's enchanting world, where stunning landscapes,
             heartfelt stories, and unforgettable characters come to life.
           </p>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap", // ✅ Buttons stack if screen is narrow
-              gap: "10px",
-            }}
-          >
-            <button
-              style={{
-                background: "#fff",
-                color: "#000",
-                fontFamily: "sans-serif",
-                fontWeight: "500",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                fontSize: "0.9rem",
-                cursor: "pointer",
-                flex: "1 1 auto", // ✅ Makes buttons responsive
-              }}
-            >
+          <div className="hero-actions">
+            <button className="btn-primary">
               Explore more
             </button>
-            <button
-              style={{
-                background: "rgba(30,30,30,0.9)",
-                color: "#fff",
-                fontFamily: "sans-serif",
-                fontWeight: "500",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                fontSize: "0.9rem",
-                cursor: "pointer",
-                flex: "1 1 auto",
-              }}
-            >
+            <button className="btn-secondary">
               Watch now
             </button>
           </div>
@@ -342,10 +325,128 @@ const HomePage = () => {
       <LazyGhibliSection />
 
       {/* Section 3 */}
-      <section className="section3">
-        <div className="relative z-20">
-          <div className="inner">
-            {/* your section content */}
+      <section
+        className="section3"
+        ref={(el) => {
+          if (!el || el.dataset.observed) return;
+          el.dataset.observed = "true";
+          let timeoutId: string | number | NodeJS.Timeout | undefined;
+          const observer = new MutationObserver(() => {
+            const opacity = parseFloat(el.style.opacity || "0");
+            const isVisible =
+              opacity > 0 ||
+              el.style.visibility === "visible" ||
+              el.style.visibility === "inherit";
+              
+            if (isVisible) {
+              if (!el.dataset.timerStarted) {
+                el.dataset.timerStarted = "true";
+                timeoutId = setTimeout(() => {
+                  const video = el.querySelector("video");
+                  // Only fade in and play video on tablet/desktop devices 
+                  if (video && window.innerWidth >= 768) {
+                    video.style.opacity = "1";
+                    video.play().catch((err) => console.log("Video play blocked:", err));
+                  }
+                }, 3500);
+              }
+            } else {
+              // Reset the timer and video immediately when section is hidden
+              el.dataset.timerStarted = "";
+              if (timeoutId) {
+                clearTimeout(timeoutId as any);
+                timeoutId = undefined;
+              }
+              const video = el.querySelector("video");
+              if (video) {
+                video.pause();
+                video.currentTime = 0;
+                video.style.opacity = "0";
+              }
+            }
+          });
+          observer.observe(el, { attributes: true, attributeFilter: ["style"] });
+        }}
+      >
+        {/* Background Video (Kept in DOM but invisible on mobile) */}
+        <video
+          src="/ponyo1.mp4"
+          preload="auto"
+          muted
+          loop
+          playsInline
+          style={{
+            opacity: 0,
+            transition: "opacity 1s ease-in-out",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            zIndex: -1,
+          }}
+        />
+
+        <div className="relative z-20 w-full flex-1 flex flex-col justify-center items-end pr-4 sm:pr-8 md:pr-12 pl-4 pb-20">
+          <div 
+            className="text-center transition-all duration-700 ease-out hover:transform hover:scale-[1.03] hover:rotate-0" 
+            style={{ 
+              width: "92%",
+              maxWidth: "580px",
+              fontFamily: "var(--font-quicksand), sans-serif",
+              background: "rgba(255, 255, 255, 0.08)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              padding: "clamp(2rem, 8vw, 4rem)",
+              borderRadius: "45px",
+              border: "2px solid rgba(255, 255, 255, 0.15)",
+              boxShadow: "0 40px 100px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.05)",
+              transform: "rotate(-1.5deg)",
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <span 
+                className="uppercase tracking-[0.4em] text-[10px] sm:text-xs font-bold mb-4 opacity-80"
+                style={{ 
+                  color: "#3498db",
+                  fontFamily: "var(--font-fredoka), sans-serif" 
+                }}
+              >
+                ✨ A Visual Wonderland ✨
+              </span>
+              <h2 
+                className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-[1.1] text-white"
+                style={{ 
+                  fontFamily: "var(--font-fredoka), sans-serif",
+                  filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.3))"
+                }}
+              >
+                A Tribute to <br/> 
+                <span style={{ 
+                  background: "linear-gradient(135deg, #74b9ff, #3498db)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  display: "inline-block",
+                }}>
+                  Ghibli
+                </span>
+              </h2>
+              <div 
+                className="w-24 h-[4px] mb-8 opacity-40 rounded-full"
+                style={{ background: "linear-gradient(to right, transparent, #3498db, transparent)" }}
+              ></div>
+              <p 
+                className="text-lg sm:text-xl font-medium leading-relaxed max-w-[480px] m-0"
+                style={{ 
+                  color: "#f0f0f0", 
+                  letterSpacing: "0.02em",
+                  lineHeight: "1.6" 
+                }}
+              >
+                Jump into a bubbly frontend adventure celebrating the whimsical and heartwarming magic of Studio Ghibli's greatest stories!
+              </p>
+            </div>
           </div>
         </div>
 
@@ -356,9 +457,12 @@ const HomePage = () => {
           rel="noopener noreferrer"
           className="github-logo"
         >
-          <img
+          <Image
             src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
             alt="GitHub"
+            width={40}
+            height={40}
+            priority={false}
           />
         </a>
 

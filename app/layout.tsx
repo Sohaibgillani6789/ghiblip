@@ -1,11 +1,16 @@
+import { Cinzel, Lato, Fredoka, Quicksand } from 'next/font/google';
 import "../styles/globals.css";
 import NeonLineLoader from "./NeonLineLoader";
 import MouseComponent from "./mouse";
 
+const cinzel = Cinzel({ subsets: ['latin'], display: 'swap', variable: '--font-cinzel', weight: ['400', '600'] });
+const lato = Lato({ subsets: ['latin'], display: 'swap', variable: '--font-lato', weight: ['300', '400'] });
+const fredoka = Fredoka({ subsets: ['latin'], display: 'swap', variable: '--font-fredoka', weight: ['400', '700'] });
+const quicksand = Quicksand({ subsets: ['latin'], display: 'swap', variable: '--font-quicksand', weight: ['300', '500', '700'] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-black text-white">
+    <html lang="en" className={`bg-black text-white ${cinzel.variable} ${lato.variable} ${fredoka.variable} ${quicksand.variable}`}>
       <head>
         <title>Ghibli Studio Website</title>
         <meta charSet="UTF-8" />
